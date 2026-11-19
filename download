@@ -1,0 +1,35 @@
+# Byte-compiled / optimized / ambient files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Data and large files
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Outputs and logs
+outputs/masks/*
+outputs/graphs/*
+outputs/simulations/*
+!outputs/visualization/*
+!outputs/reports/*
+*.log
+*.zip
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace

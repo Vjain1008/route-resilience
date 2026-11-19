@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Route Resilience 3.0 - Continuous Non-Stop Flow & 3D Grade-Separation Viewer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background: #0f172a; color: #f8fafc; overflow: hidden; display: flex; height: 100vh; }
+    #sidebar { width: 360px; background: #1e293b; border-right: 1px solid #334155; padding: 20px; display: flex; flex-direction: column; gap: 18px; z-index: 10; box-shadow: 4px 0 20px rgba(0,0,0,0.5); overflow-y: auto; }
+    #viewport-container { flex: 1; position: relative; display: flex; flex-direction: column; }
+    #canvas3d { width: 100%; height: 100%; display: block; cursor: grab; }
+    #canvas3d:active { cursor: grabbing; }
+    h1 { font-size: 1.15rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+    .badge { font-size: 0.65rem; background: #0284c7; color: #fff; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+    .card { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 14px; }
+    label { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 600; margin-bottom: 6px; display: block; }
+    select, button { width: 100%; padding: 10px 12px; background: #1e293b; color: #f8fafc; border: 1px solid #475569; border-radius: 6px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+    select:hover, button:hover { border-color: #38bdf8; }
+    .btn-toggle { background: #2563eb; color: #fff; font-weight: 600; border: none; margin-top: 4px; }
+    .btn-toggle.active { background: #10b981; }
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+    .metric-box { background: #1e293b; border-radius: 6px; padding: 10px; border-left: 3px solid #38bdf8; }
+    .metric-val { font-size: 1.25rem; font-weight: 700; color: #38bdf8; }
+    .metric-val.green { color: #34d399; }
+    .metric-val.amber { color: #fbbf24; }
+    .metric-lbl { font-size: 0.68rem; color: #94a3b8; margin-top: 2px; }
+    .legend { display: flex; flex-direction: column; gap: 6px; font-size: 0.75rem; color: #cbd5e1; }
+    .legend-item { display: flex; align-items: center; gap: 8px; }
+    .legend-color { width: 14px; height: 14px; border-radius: 3px; }
+    #hud { position: absolute; top: 16px; right: 16px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border: 1px solid #334155; border-radius: 8px; padding: 12px 18px; pointer-events: none; }
+    #hud h2 { font-size: 0.9rem; color: #38bdf8; margin-bottom: 4px; }
+    #hud p { font-size: 0.75rem; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <div>
+      <h1>Route Resilience 3.0 <span class="badge">3D Engine</span></h1>
+      <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Zero-Demolition Continuous Flow & Grade-Separation Optimizer</p>
+    </div>
+
+    <div class="card">
+      <label for="junction-select">Select Indian Urban Junction</label>
+      <select id="junction-select">
+        <option value="silk_board">Central Silk Board (Bengaluru)</option>
+        <option value="ito">ITO Junction (New Delhi)</option>
+        <option value="chandani">Chandani Chowk (Pune)</option>
+        <option value="kathipara">Kathipara Junction (Chennai)</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <label>Mobility Flow Mode</label>
+      <button id="toggle-bypass" class="btn-toggle active">MODE: 3D CONTINUOUS FLOW (Signals Bypassed)</button>
+      <p id="mode-desc" style="font-size: 0.7rem; color: #34d399; margin-top: 8px;">
+        Grade-separated viaduct active. Continuous non-stop turning at 50 km/h with 0s signal delay.
+      </p>
+    </div>
+
+    <div class="card">
+      <label>Real-Time Simulation Metrics</label>
+      <div class="metric-grid">
+        <div class="metric-box">
+          <div id="m-delay" class="metric-val green">-78.6%</div>
+          <div class="metric-lbl">Congestion Delay</div>
+        </div>
+        <div class="metric-box">
+          <div id="m-time" class="metric-val green">27 min</div>
+          <div class="metric-lbl">Avg Trip Time</div>
+        </div>
+        <div class="metric-box">
+          <div id="m-clearance" class="metric-val">155 m</div>
+          <div class="metric-lbl">Min Building Buffer</div>
+        </div>
+        <div class="metric-box">
+          <div id="m-demolition" class="metric-val green">0</div>
+          <div class="metric-lbl">Structures Demolished</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>3D Layer Legend</label>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-color" style="background: #3b82f6;"></div><span>Elevated Viaduct Ramp (Tier +1, 50 km/h)</span></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ef4444;"></div><span>At-Grade Signal Bottleneck (Red Light Queue)</span></div>
+        <div class="legend-item"><div class="legend-color" style="background: #475569;"></div><span>Surrounding Buildings (100% Preserved)</span></div>
+        <div class="legend-item"><div class="legend-color" style="background: #10b981;"></div><span>Continuous Free-Flow Trajectories</span></div>
+      </div>
+    </div>
+
+    <p style="font-size: 0.7rem; color: #64748b; margin-top: auto;">
+      Rotate: Left-Click + Drag | Zoom: Mouse Wheel | Reset: Double-Click
+    </p>
+  </div>
+
+  <div id="viewport-container">
+    <canvas id="canvas3d"></canvas>
+    <div id="hud">
+      <h2 id="hud-title">Central Silk Board Junction - Bengaluru</h2>
+      <p id="hud-sub">ORR East to Hosur Road South Free-Flow Elevated Viaduct</p>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas3d');
+    const ctx = canvas.getContext('2d');
+    let width = canvas.width = canvas.clientWidth;
+    let height = canvas.height = canvas.clientHeight;
+
+    window.addEventListener('resize', () => {
+      width = canvas.width = canvas.clientWidth;
+      height = canvas.height = canvas.clientHeight;
+    });
+
+    // Camera 3D Perspective controls
+    let camYaw = 0.55;
+    let camPitch = 0.65;
+    let camZoom = 0.85;
+    let isDragging = false;
+    let lastMouseX = 0, lastMouseY = 0;
+
+    canvas.addEventListener('mousedown', e => { isDragging = true; lastMouseX = e.clientX; lastMouseY = e.clientY; });
+    window.addEventListener('mouseup', () => isDragging = false);
+    canvas.addEventListener('mousemove', e => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastMouseX;
+      const dy = e.clientY - lastMouseY;
+      camYaw += dx * 0.008;
+      camPitch = Math.max(0.15, Math.min(1.4, camPitch + dy * 0.008));
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+    });
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      camZoom = Math.max(0.3, Math.min(2.5, camZoom - e.deltaY * 0.001));
+    });
+    canvas.addEventListener('dblclick', () => { camYaw = 0.55; camPitch = 0.65; camZoom = 0.85; });
+
+    // Project data for the 4 Indian Junctions
+    const junctions = {
+      silk_board: {
+        name: "Central Silk Board Junction (Bengaluru)",
+        sub: "Connecting Hosur Road (NH44), Outer Ring Road, and BTM Layout",
+        delayRed: "-78.6%",
+        timeBefore: "129 min",
+        timeAfter: "27 min",
+        clearance: "155 m",
+        center: { x: 0, y: 0, z: 0 },
+        arms: [
+          { name: "Koramangala (North)", x: 0, y: -240, z: 0 },
+          { name: "Hosur Rd (South)", x: 0, y: 260, z: 0 },
+          { name: "ORR Bellandur (East)", x: 260, y: 10, z: 0 },
+          { name: "BTM Layout (West)", x: -240, y: -20, z: 0 }
+        ],
+        buildings: [
+          { name: "Central Silk Board HQ", x: 80, y: -80, w: 90, h: 90, height: 45 },
+          { name: "Udupi Grand Commercial", x: 75, y: 75, w: 90, h: 90, height: 50 },
+          { name: "BTM Plaza", x: -95, y: 70, w: 85, h: 80, height: 40 },
+          { name: "Teachers Colony", x: -95, y: -85, w: 85, h: 80, height: 45 }
+        ],
+        bypassCurve: [
+          { x: 250, y: 10, z: 2 },
+          { x: 190, y: 70, z: 22 },
+          { x: 120, y: 160, z: 22 },
+          { x: 40, y: 210, z: 12 },
+          { x: 0, y: 250, z: 2 }
+        ]
+      },
+      ito: {
+        name: "ITO Junction (New Delhi)",
+        sub: "Connecting Vikas Marg (Trans-Yamuna), Connaught Place, and South Ring Road",
+        delayRed: "-84.7%",
+        timeBefore: "151 min",
+        timeAfter: "23 min",
+        clearance: "141 m",
+        center: { x: 0, y: 0, z: 0 },
+        arms: [
+          { name: "BSZ Marg (North)", x: 0, y: -250, z: 0 },
+          { name: "Tilak Bridge (South)", x: 0, y: 270, z: 0 },
+          { name: "Vikas Marg (East)", x: 280, y: 0, z: 0 },
+          { name: "Connaught Place (West)", x: -250, y: 0, z: 0 }
+        ],
+        buildings: [
+          { name: "Herald House", x: 85, y: -90, w: 95, h: 90, height: 45 },
+          { name: "Engineers Bhawan", x: 85, y: 80, w: 95, h: 90, height: 55 },
+          { name: "Police HQ", x: -100, y: 80, w: 90, h: 85, height: 50 },
+          { name: "UGC Complex", x: -100, y: -90, w: 90, h: 85, height: 40 }
+        ],
+        bypassCurve: [
+          { x: 270, y: 0, z: 2 },
+          { x: 200, y: 80, z: 24 },
+          { x: 130, y: 170, z: 24 },
+          { x: 45, y: 225, z: 12 },
+          { x: 0, y: 260, z: 2 }
+        ]
+      },
+      chandani: {
+        name: "Chandani Chowk (Pune)",
+        sub: "Connecting NH 48, Paud Road (Mulshi), and Kothrud",
+        delayRed: "-22.6%",
+        timeBefore: "103 min",
+        timeAfter: "79 min",
+        clearance: "18.7 m",
+        center: { x: 0, y: 0, z: 0 },
+        arms: [
+          { name: "NH 48 Mumbai", x: -130, y: -230, z: 0 },
+          { name: "NH 48 Bengaluru", x: 150, y: 220, z: 0 },
+          { name: "Paud Rd (Mulshi)", x: -250, y: 0, z: 0 },
+          { name: "Kothrud (Pune)", x: 240, y: -40, z: 0 },
+          { name: "Bavdhan", x: 30, y: -220, z: 0 }
+        ],
+        buildings: [
+          { name: "Paud Commercial", x: -120, y: 80, w: 90, h: 90, height: 40 },
+          { name: "Bavdhan Hillside", x: 60, y: -100, w: 90, h: 90, height: 55 },
+          { name: "Kothrud Plaza", x: 90, y: 60, w: 85, h: 85, height: 45 }
+        ],
+        bypassCurve: [
+          { x: -240, y: 0, z: 2 },
+          { x: -130, y: -110, z: 20 },
+          { x: 0, y: -140, z: 20 },
+          { x: 140, y: -110, z: 20 },
+          { x: 230, y: -40, z: 2 }
+        ]
+      },
+      kathipara: {
+        name: "Kathipara Junction (Chennai)",
+        sub: "Connecting GST Road (Airport), Inner Ring Road, and Anna Salai",
+        delayRed: "-88.8%",
+        timeBefore: "113 min",
+        timeAfter: "12 min",
+        clearance: "185 m",
+        center: { x: 0, y: 0, z: 0 },
+        arms: [
+          { name: "Anna Salai (North)", x: 0, y: -250, z: 0 },
+          { name: "GST Airport (South)", x: 0, y: 260, z: 0 },
+          { name: "Inner Ring Rd (East)", x: 250, y: 0, z: 0 },
+          { name: "Mount-Poonamallee (West)", x: -250, y: 0, z: 0 }
+        ],
+        buildings: [
+          { name: "Guindy Tech Park", x: 70, y: -80, w: 90, h: 90, height: 50 },
+          { name: "Metro Operations Wing", x: -100, y: -80, w: 90, h: 90, height: 45 },
+          { name: "SIDCO Trade Towers", x: -100, y: 70, w: 90, h: 90, height: 55 }
+        ],
+        bypassCurve: [
+          { x: 0, y: 250, z: 2 },
+          { x: 90, y: 190, z: 22 },
+          { x: 170, y: 120, z: 22 },
+          { x: 220, y: 50, z: 12 },
+          { x: 240, y: 0, z: 2 }
+        ]
+      }
+    };
+
+    let currentJunctionKey = 'silk_board';
+    let isBypassActive = true;
+
+    // 3D Projection math
+    function project3D(x, y, z) {
+      // Rotate around Z (yaw)
+      const cosY = Math.cos(camYaw);
+      const sinY = Math.sin(camYaw);
+      const x1 = x * cosY - y * sinY;
+      const y1 = x * sinY + y * cosY;
+
+      // Rotate around X (pitch)
+      const cosP = Math.cos(camPitch);
+      const sinP = Math.sin(camPitch);
+      const y2 = y1 * cosP - z * sinP;
+      const z2 = y1 * sinP + z * cosP;
+
+      // Camera distance and perspective projection
+      const distance = 600;
+      const scale = (distance / (distance + y2)) * camZoom * 1.35;
+      const screenX = width / 2 + x1 * scale;
+      const screenY = height / 2 + (y2 * 0.25 - z2) * scale;
+      return { x: screenX, y: screenY, depth: y2 };
+    }
+
+    // Vehicle animation particles
+    let particles = [];
+    for (let i = 0; i < 40; i++) {
+      particles.push({
+        progress: Math.random(),
+        speed: 0.003 + Math.random() * 0.004,
+        type: Math.random() > 0.4 ? 'bypass' : 'surface'
+      });
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, width, height);
+
+      const junc = junctions[currentJunctionKey];
+
+      // Draw Grid ground plane
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      for (let g = -300; g <= 300; g += 60) {
+        let p1 = project3D(g, -300, 0);
+        let p2 = project3D(g, 300, 0);
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        p1 = project3D(-300, g, 0);
+        p2 = project3D(300, g, 0);
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+      }
+
+      // Draw At-Grade Surface Roads
+      ctx.strokeStyle = isBypassActive ? '#334155' : '#ef4444';
+      ctx.lineWidth = 14 * camZoom;
+      ctx.lineCap = 'round';
+      junc.arms.forEach(arm => {
+        const pStart = project3D(arm.x, arm.y, arm.z);
+        const pCenter = project3D(junc.center.x, junc.center.y, junc.center.z);
+        ctx.beginPath();
+        ctx.moveTo(pStart.x, pStart.y);
+        ctx.lineTo(pCenter.x, pCenter.y);
+        ctx.stroke();
+      });
+
+      // Central junction point
+      const pC = project3D(junc.center.x, junc.center.y, junc.center.z);
+      ctx.fillStyle = isBypassActive ? '#64748b' : '#dc2626';
+      ctx.beginPath();
+      ctx.arc(pC.x, pC.y, 12 * camZoom, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw 3D Buildings (Prisms with zero-demolition highlight)
+      junc.buildings.forEach(b => {
+        const hw = b.w / 2;
+        const hh = b.h / 2;
+        const corners = [
+          { x: b.x - hw, y: b.y - hh },
+          { x: b.x + hw, y: b.y - hh },
+          { x: b.x + hw, y: b.y + hh },
+          { x: b.x - hw, y: b.y + hh }
+        ];
+
+        // Draw building body (extruded to height)
+        const basePts = corners.map(c => project3D(c.x, c.y, 0));
+        const roofPts = corners.map(c => project3D(c.x, c.y, b.height));
+
+        // Walls
+        ctx.fillStyle = '#334155';
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {
+          const next = (i + 1) % 4;
+          ctx.beginPath();
+          ctx.moveTo(basePts[i].x, basePts[i].y);
+          ctx.lineTo(basePts[next].x, basePts[next].y);
+          ctx.lineTo(roofPts[next].x, roofPts[next].y);
+          ctx.lineTo(roofPts[i].x, roofPts[i].y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // Roof
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.moveTo(roofPts[0].x, roofPts[0].y);
+        for (let i = 1; i < 4; i++) ctx.lineTo(roofPts[i].x, roofPts[i].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Building Label
+        const labelPos = project3D(b.x, b.y, b.height + 6);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = `${Math.max(10, Math.floor(10 * camZoom))}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(b.name, labelPos.x, labelPos.y);
+      });
+
+      // Draw 3D Elevated Curved Viaduct Bypass
+      if (isBypassActive) {
+        // Viaduct Pillars
+        junc.bypassCurve.forEach((pt, idx) => {
+          if (idx > 0 && idx < junc.bypassCurve.length - 1) {
+            const pBase = project3D(pt.x, pt.y, 0);
+            const pTop = project3D(pt.x, pt.y, pt.z);
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 6 * camZoom;
+            ctx.beginPath();
+            ctx.moveTo(pBase.x, pBase.y);
+            ctx.lineTo(pTop.x, pTop.y);
+            ctx.stroke();
+          }
+        });
+
+        // Roadway deck
+        ctx.strokeStyle = '#2563eb';
+        ctx.lineWidth = 10 * camZoom;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        const pStart = project3D(junc.bypassCurve[0].x, junc.bypassCurve[0].y, junc.bypassCurve[0].z);
+        ctx.moveTo(pStart.x, pStart.y);
+        for (let i = 1; i < junc.bypassCurve.length; i++) {
+          const pt = project3D(junc.bypassCurve[i].x, junc.bypassCurve[i].y, junc.bypassCurve[i].z);
+          ctx.lineTo(pt.x, pt.y);
+        }
+        ctx.stroke();
+
+        // Glowing center track
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2 * camZoom;
+        ctx.stroke();
+      }
+
+      // Draw Moving Vehicle Particles
+      particles.forEach(p => {
+        p.progress += p.speed;
+        if (p.progress >= 1.0) p.progress = 0;
+
+        let pos;
+        if (isBypassActive && p.type === 'bypass') {
+          // Spline interpolation along bypass curve
+          const curve = junc.bypassCurve;
+          const totalSegments = curve.length - 1;
+          const segmentIdx = Math.min(totalSegments - 1, Math.floor(p.progress * totalSegments));
+          const t = (p.progress * totalSegments) - segmentIdx;
+          const p1 = curve[segmentIdx];
+          const p2 = curve[segmentIdx + 1];
+          const x = p1.x + (p2.x - p1.x) * t;
+          const y = p1.y + (p2.y - p1.y) * t;
+          const z = p1.z + (p2.z - p1.z) * t;
+          pos = project3D(x, y, z);
+          ctx.fillStyle = '#34d399'; // Green non-stop vehicle
+        } else {
+          // At-grade vehicle
+          const arm = junc.arms[0];
+          const t = p.progress;
+          const x = arm.x * (1 - t) + junc.center.x * t;
+          const y = arm.y * (1 - t) + junc.center.y * t;
+          pos = project3D(x, y, 0);
+          ctx.fillStyle = isBypassActive ? '#60a5fa' : (t > 0.7 ? '#ef4444' : '#fbbf24');
+        }
+
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 4 * camZoom, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      requestAnimationFrame(draw);
+    }
+
+    // Controls
+    const select = document.getElementById('junction-select');
+    const toggleBtn = document.getElementById('toggle-bypass');
+    const modeDesc = document.getElementById('mode-desc');
+    const hudTitle = document.getElementById('hud-title');
+    const hudSub = document.getElementById('hud-sub');
+    const mDelay = document.getElementById('m-delay');
+    const mTime = document.getElementById('m-time');
+    const mClearance = document.getElementById('m-clearance');
+
+    function updateUI() {
+      const j = junctions[currentJunctionKey];
+      hudTitle.innerText = j.name;
+      hudSub.innerText = j.sub;
+
+      if (isBypassActive) {
+        toggleBtn.innerText = "MODE: 3D CONTINUOUS FLOW (Signals Bypassed)";
+        toggleBtn.className = "btn-toggle active";
+        modeDesc.innerText = "Grade-separated viaduct active. Continuous non-stop turning at 50 km/h with 0s signal delay.";
+        modeDesc.style.color = "#34d399";
+        mDelay.innerText = j.delayRed;
+        mDelay.className = "metric-val green";
+        mTime.innerText = j.timeAfter;
+        mTime.className = "metric-val green";
+        mClearance.innerText = j.clearance;
+      } else {
+        toggleBtn.innerText = "MODE: AT-GRADE CONGESTED BASELINE (Signals ON)";
+        toggleBtn.className = "btn-toggle";
+        modeDesc.innerText = "All turning vehicles queued at at-grade signal. Severe gridlock and shockwave delays.";
+        modeDesc.style.color = "#f87171";
+        mDelay.innerText = "0.0%";
+        mDelay.className = "metric-val amber";
+        mTime.innerText = j.timeBefore;
+        mTime.className = "metric-val amber";
+        mClearance.innerText = "N/A";
+      }
+    }
+
+    select.addEventListener('change', e => {
+      currentJunctionKey = e.target.value;
+      updateUI();
+    });
+
+    toggleBtn.addEventListener('click', () => {
+      isBypassActive = !isBypassActive;
+      updateUI();
+    });
+
+    updateUI();
+    draw();
+  </script>
+</body>
+</html>
