@@ -12,6 +12,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # Ensure src is in python path
@@ -25,15 +26,28 @@ app = FastAPI(
     version="3.0.0"
 )
 
+# Enable CORS for all origins (allows Live Server, file://, custom ports)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Ensure directories exist
 Path("static").mkdir(exist_ok=True)
 Path("data/sample_images").mkdir(parents=True, exist_ok=True)
+Path("outputs/visualization").mkdir(parents=True, exist_ok=True)
 
-# Mount static files
+# Mount static directories
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/data", StaticFiles(directory="data"), name="data")
+app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
 async def index():
     html_file = Path("static/index.html")
     if html_file.exists():

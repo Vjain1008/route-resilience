@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Route Resilience - Interactive Aerial Report Generator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background: #0b1329; color: #f1f5f9; min-height: 100vh; display: flex; flex-direction: column; }
+    header { background: #111d38; border-bottom: 1px solid #1e293b; padding: 18px 32px; display: flex; justify-content: space-between; align-items: center; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand h1 { font-size: 1.25rem; font-weight: 700; color: #38bdf8; letter-spacing: -0.5px; }
+    .badge { background: #0284c7; color: #fff; font-size: 0.7rem; font-weight: 600; padding: 3px 8px; border-radius: 9999px; text-transform: uppercase; }
+    .nav-links a { color: #94a3b8; text-decoration: none; font-size: 0.85rem; margin-left: 20px; transition: color 0.2s; }
+    .nav-links a:hover { color: #38bdf8; }
+
+    main { flex: 1; max-width: 1280px; width: 100%; margin: 0 auto; padding: 32px 24px; display: flex; flex-direction: column; gap: 28px; }
+
+    .hero-banner { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155; border-radius: 12px; padding: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+    .hero-text h2 { font-size: 1.4rem; color: #f8fafc; font-weight: 700; margin-bottom: 6px; }
+    .hero-text p { font-size: 0.88rem; color: #94a3b8; max-width: 700px; line-height: 1.5; }
+
+    .presets-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-preset { background: #1e293b; border: 1px solid #475569; color: #f8fafc; padding: 8px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-preset:hover { background: #38bdf8; color: #0f172a; border-color: #38bdf8; }
+
+    .workbench-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 900px) { .workbench-grid { grid-template-columns: 1fr; } }
+
+    .panel { background: #111d38; border: 1px solid #1e293b; border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 16px; }
+    .panel-title { font-size: 1rem; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+
+    .dropzone { border: 2px dashed #475569; border-radius: 10px; padding: 36px 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(15, 23, 42, 0.4); }
+    .dropzone:hover, .dropzone.dragover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.05); }
+    .dropzone svg { width: 44px; height: 44px; fill: #64748b; margin-bottom: 12px; }
+    .dropzone p { font-size: 0.85rem; color: #cbd5e1; margin-bottom: 4px; }
+    .dropzone span { font-size: 0.72rem; color: #64748b; }
+
+    .img-preview-box { width: 100%; height: 380px; background: #0f172a; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #334155; position: relative; }
+    .img-preview-box img { width: 100%; height: 100%; object-fit: contain; }
+    .img-placeholder { color: #64748b; font-size: 0.85rem; text-align: center; }
+
+    .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .metric-card { background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 12px 14px; border-left: 3px solid #38bdf8; }
+    .metric-card.green { border-left-color: #10b981; }
+    .metric-card.amber { border-left-color: #f59e0b; }
+    .metric-val { font-size: 1.35rem; font-weight: 800; color: #38bdf8; }
+    .metric-val.green { color: #34d399; }
+    .metric-val.amber { color: #fbbf24; }
+    .metric-lbl { font-size: 0.72rem; color: #94a3b8; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .report-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 6px; }
+    .report-table th, .report-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid #1e293b; }
+    .report-table th { color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; }
+    .report-table td { color: #e2e8f0; }
+
+    .actions-bar { display: flex; gap: 12px; margin-top: auto; }
+    .btn-action { flex: 1; padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; border: none; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-outline { background: transparent; border: 1px solid #475569; color: #cbd5e1; }
+    .btn-outline:hover { border-color: #38bdf8; color: #38bdf8; }
+
+    .loader { display: none; align-items: center; gap: 10px; font-size: 0.85rem; color: #38bdf8; }
+    .spinner { width: 18px; height: 18px; border: 2px solid rgba(56, 189, 248, 0.3); border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .drag-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(11, 19, 41, 0.94);
+      border: 4px dashed #38bdf8;
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      pointer-events: none;
+    }
+    .drag-overlay.active { display: flex; }
+    .drag-overlay svg { width: 72px; height: 72px; fill: #38bdf8; animation: bounce 1s infinite alternate ease-in-out; }
+    .drag-overlay h2 { font-size: 1.6rem; color: #f8fafc; font-weight: 700; }
+    .drag-overlay p { font-size: 0.95rem; color: #94a3b8; }
+    @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-12px); } }
+
+    footer { background: #0f172a; border-top: 1px solid #1e293b; padding: 16px 32px; font-size: 0.75rem; color: #64748b; text-align: center; }
+  </style>
+</head>
+<body>
+  <div id="drag-overlay" class="drag-overlay">
+    <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+    <h2>Drop Satellite / Aerial Photograph Here</h2>
+    <p>Release anywhere to detect occlusions, every junction, and generate resilience report</p>
+  </div>
+  <header>
+    <div class="brand">
+      <h1>Route Resilience</h1>
+      <span class="badge">Trial v3.0</span>
+    </div>
+    <div class="nav-links">
+      <a href="/outputs/visualization/junction_3d_viewer.html" target="_blank">Open 3D Viewer</a>
+      <a href="https://github.com" target="_blank">GitHub Repository</a>
+    </div>
+  </header>
+
+  <div id="backend-warning" style="display: none; background: #b91c1c; color: #fff; padding: 12px 24px; text-align: center; font-size: 0.88rem; font-weight: 600; border-bottom: 2px solid #f87171;">
+    ⚠️ Python Backend Server is offline. Please start the server by double-clicking <code>start_server.bat</code> (or running <code>python app.py</code> in terminal), then open <a href="http://localhost:8000" style="color: #fef08a; text-decoration: underline; margin-left: 4px;">http://localhost:8000</a>.
+  </div>
+
+  <main>
+    <div class="hero-banner">
+      <div class="hero-text">
+        <h2>Aerial Photograph Analysis & Resilience Report Generator</h2>
+        <p>
+          Upload an aerial or satellite junction photograph. The engine infers occluded road networks under tree canopies and building shadows, identifies critical chokepoints, and synthesizes 3D non-stop continuous bypasses with zero building demolition.
+        </p>
+      </div>
+      <div>
+        <div style="font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; margin-bottom: 8px;">Quick Test Presets (India)</div>
+        <div class="presets-row">
+          <button class="btn-preset" onclick="loadPreset('silk_board')">Silk Board (Bengaluru)</button>
+          <button class="btn-preset" onclick="loadPreset('ito_delhi')">ITO (Delhi)</button>
+          <button class="btn-preset" onclick="loadPreset('chandani_chowk')">Chandani Chowk (Pune)</button>
+          <button class="btn-preset" onclick="loadPreset('kathipara_chennai')">Kathipara (Chennai)</button>
+          <button class="btn-preset" style="border-color: #38bdf8; color: #38bdf8;" onclick="loadPreset('corridor_multi_junction')">Multi-Junction Corridor (3+ Intersections)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="workbench-grid">
+      <!-- Left: Upload & Input -->
+      <div class="panel">
+        <div class="panel-title">
+          <span>1. Input Photograph & Occlusion Detection</span>
+          <div id="loader-indicator" class="loader">
+            <div class="spinner"></div>
+            <span>Analyzing neural network & graph...</span>
+          </div>
+        </div>
+
+        <div id="dropzone" class="dropzone" onclick="document.getElementById('file-input').click()">
+          <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+          <p>Drop satellite/aerial photograph here or click to browse</p>
+          <span>Supports PNG, JPG, TIFF (Max 25MB)</span>
+          <input type="file" id="file-input" style="display: none;" accept="image/*" onchange="handleFileSelect(event)">
+        </div>
+
+        <div class="img-preview-box">
+          <img id="img-input" style="display: none;" alt="Uploaded photograph">
+          <div id="placeholder-input" class="img-placeholder">
+            No photograph loaded yet.<br>Upload an image or click a quick test preset above.
+          </div>
+        </div>
+
+        <div style="font-size: 0.75rem; color: #94a3b8;">
+          <strong>Spectral Analysis:</strong> Automatically extracts Excess Green Index (2G - R - B) to isolate tree canopies and evaluates luminance gradients to map building shadows.
+        </div>
+      </div>
+
+      <!-- Right: Generated Synthesis & Report -->
+      <div class="panel">
+        <div class="panel-title">
+          <span>2. Synthesized 3D Non-Stop Map & Resilience Report</span>
+          <span id="junction-badge" class="badge" style="display: none;">Analyzed</span>
+        </div>
+
+        <div class="img-preview-box">
+          <img id="img-output" style="display: none;" alt="Synthesized output map">
+          <div id="placeholder-output" class="img-placeholder">
+            Analysis results will appear here.<br>Visualizes road centerline, detected buildings, and 3D viaduct bypass.
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-card green">
+            <div id="res-cong-reduction" class="metric-val green">--</div>
+            <div class="metric-lbl">Congestion Delay Drop</div>
+          </div>
+          <div class="metric-card green">
+            <div id="res-trip-time" class="metric-val green">--</div>
+            <div class="metric-lbl">Post-Bypass Avg Trip</div>
+          </div>
+          <div class="metric-card">
+            <div id="res-building-clearance" class="metric-val">--</div>
+            <div class="metric-lbl">Min Building Clearance</div>
+          </div>
+          <div class="metric-card green">
+            <div id="res-demolitions" class="metric-val green">0</div>
+            <div class="metric-lbl">Structures Demolished</div>
+          </div>
+        </div>
+
+        <table class="report-table">
+          <tbody>
+            <tr><td>Primary Chokepoint</td><td id="rep-node">--</td></tr>
+            <tr><td>Total Junctions Evaluated</td><td id="rep-junc-count">--</td></tr>
+            <tr><td>Betweenness Centrality (C_B)</td><td id="rep-cb">--</td></tr>
+            <tr><td>Occlusion Recovered (Canopy + Shadow)</td><td id="rep-occlusion">--</td></tr>
+            <tr><td>Synthesized Pathway Geometry</td><td id="rep-geometry">--</td></tr>
+            <tr><td>Bottleneck Volume/Capacity (V/C)</td><td id="rep-vc">--</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Detected Junctions List -->
+        <div style="margin-top: 10px;">
+          <div style="font-size: 0.75rem; text-transform: uppercase; color: #38bdf8; font-weight: 700; margin-bottom: 6px;">
+            Every Detected Junction Across Network
+          </div>
+          <div style="max-height: 140px; overflow-y: auto; border: 1px solid #1e293b; border-radius: 6px;">
+            <table class="report-table" id="table-junctions">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Position (X,Y)</th>
+                  <th>Type & Degree</th>
+                  <th>Betweenness</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-junctions">
+                <tr><td colspan="5" style="text-align: center; color: #64748b;">No junctions loaded</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Road Size Profiles List -->
+        <div style="margin-top: 10px;">
+          <div style="font-size: 0.75rem; text-transform: uppercase; color: #38bdf8; font-weight: 700; margin-bottom: 6px;">
+            Road Corridors & Measured Sizes
+          </div>
+          <div style="max-height: 130px; overflow-y: auto; border: 1px solid #1e293b; border-radius: 6px;">
+            <table class="report-table" id="table-roads">
+              <thead>
+                <tr>
+                  <th>Corridor</th>
+                  <th>Width</th>
+                  <th>Lanes</th>
+                  <th>Classification</th>
+                  <th>Capacity</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-roads">
+                <tr><td colspan="5" style="text-align: center; color: #64748b;">No road sizes loaded</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="actions-bar" style="margin-top: 14px;">
+          <button class="btn-action btn-outline" onclick="exportReportJSON()">Download JSON</button>
+          <button class="btn-action btn-primary" onclick="window.print()">Print Executive Report</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Route Resilience Project &bull; Occlusion-Robust Road Extraction & 3D Grade-Separation Optimization &bull; Zero-Demolition Engineering
+  </footer>
+
+  <script>
+    let currentReport = null;
+
+    // Drag and drop handlers
+    const dropzone = document.getElementById('dropzone');
+    const dragOverlay = document.getElementById('drag-overlay');
+    let dragCounter = 0;
+
+    // Full-window drag and drop: drag anywhere on the page!
+    window.addEventListener('dragenter', e => {
+      e.preventDefault();
+      dragCounter++;
+      if (dragCounter === 1) {
+        dragOverlay.classList.add('active');
+      }
+    });
+
+    window.addEventListener('dragleave', e => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        dragOverlay.classList.remove('active');
+      }
+    });
+
+    window.addEventListener('dragover', e => {
+      e.preventDefault();
+    });
+
+    window.addEventListener('drop', e => {
+      e.preventDefault();
+      dragCounter = 0;
+      dragOverlay.classList.remove('active');
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if (file.type.startsWith('image/')) {
+          processUploadedFile(file);
+        } else {
+          alert('Please upload an image file (PNG, JPG, TIFF, WebP).');
+        }
+      }
+    });
+
+    // Targeted dropzone handlers
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        processUploadedFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    // Paste screenshot from clipboard (Ctrl+V)
+    window.addEventListener('paste', e => {
+      const items = (e.clipboardData || window.clipboardData).items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const blob = items[i].getAsFile();
+          processUploadedFile(blob);
+          break;
+        }
+      }
+    });
+
+    function handleFileSelect(event) {
+      if (event.target.files.length > 0) {
+        processUploadedFile(event.target.files[0]);
+      }
+    }
+
+    function showLoader(show) {
+      document.getElementById('loader-indicator').style.display = show ? 'flex' : 'none';
+    }
+
+    function showBackendWarning(show) {
+      const banner = document.getElementById('backend-warning');
+      if (banner) banner.style.display = show ? 'block' : 'none';
+    }
+
+    function getApiBase() {
+      // If opened via file:// or non-8000 port (e.g. VS Code Live Server 5500), route to FastAPI port 8000
+      if (window.location.protocol === 'file:' || (window.location.port && window.location.port !== '8000')) {
+        return 'http://localhost:8000';
+      }
+      return '';
+    }
+
+    async function parseServerResponse(resp) {
+      if (!resp.ok) {
+        const text = await resp.text();
+        if (text.includes('<html') || text.includes('<!DOCTYPE')) {
+          showBackendWarning(true);
+          throw new Error("Cannot reach Python backend server (HTTP " + resp.status + ").\nPlease start the server by double-clicking 'start_server.bat' (or running 'python app.py') and open http://localhost:8000 in your browser.");
+        }
+        try {
+          const errData = JSON.parse(text);
+          throw new Error(errData.detail || errData.error || `Server error (HTTP ${resp.status})`);
+        } catch (e) {
+          throw new Error(text || `Server error (HTTP ${resp.status})`);
+        }
+      }
+      const ct = resp.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        const text = await resp.text();
+        if (text.includes('<html') || text.includes('<!DOCTYPE')) {
+          showBackendWarning(true);
+          throw new Error("Received HTML instead of JSON from server.\nPlease ensure 'app.py' is running and open http://localhost:8000.");
+        }
+      }
+      return await resp.json();
+    }
+
+    async function processUploadedFile(file) {
+      showLoader(true);
+      const reader = new FileReader();
+      reader.onload = e => {
+        const imgInput = document.getElementById('img-input');
+        imgInput.src = e.target.result;
+        imgInput.style.display = 'block';
+        document.getElementById('placeholder-input').style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('junction_name', file.name.replace(/\.[^/.]+$/, ''));
+
+      const apiBase = getApiBase();
+      try {
+        const resp = await fetch(`${apiBase}/api/analyze-upload`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await parseServerResponse(resp);
+        showBackendWarning(false);
+        renderReport(data);
+      } catch (err) {
+        showBackendWarning(true);
+        alert('Upload analysis error: ' + err.message);
+      } finally {
+        showLoader(false);
+      }
+    }
+
+    async function loadPreset(presetKey, isInitial = false) {
+      showLoader(true);
+      const apiBase = getApiBase();
+      try {
+        const resp = await fetch(`${apiBase}/api/analyze-preset`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ preset_key: presetKey })
+        });
+        const data = await parseServerResponse(resp);
+        showBackendWarning(false);
+
+        // Update preview input
+        const imgInput = document.getElementById('img-input');
+        imgInput.src = `${apiBase}/data/sample_images/${presetKey}.jpg`;
+        imgInput.style.display = 'block';
+        document.getElementById('placeholder-input').style.display = 'none';
+
+        renderReport(data);
+      } catch (err) {
+        if (!isInitial) {
+          alert('Preset error: ' + err.message);
+        } else {
+          console.warn('Backend server offline during initial load:', err.message);
+          showBackendWarning(true);
+        }
+      } finally {
+        showLoader(false);
+      }
+    }
+
+    function renderReport(report) {
+      currentReport = report;
+      document.getElementById('junction-badge').style.display = 'inline-block';
+      document.getElementById('junction-badge').innerText = report.junction_name;
+
+      // Render output map
+      const imgOut = document.getElementById('img-output');
+      imgOut.src = report.annotated_image_base64;
+      imgOut.style.display = 'block';
+      document.getElementById('placeholder-output').style.display = 'none';
+
+      // Populate metrics
+      document.getElementById('res-cong-reduction').innerText = `-${report.traffic_impact.congestion_delay_reduction_percent}%`;
+      const avgSec = report.traffic_impact.post_intervention_trip_duration_s;
+      document.getElementById('res-trip-time').innerText = `${Math.round(avgSec / 60)} min`;
+      document.getElementById('res-building-clearance').innerText = `${report.synthesized_bypass.min_building_clearance_m} m`;
+      document.getElementById('res-demolitions').innerText = report.synthesized_bypass.buildings_demolished;
+
+      // Populate table
+      document.getElementById('rep-node').innerText = report.criticality.primary_bottleneck_junction || report.criticality.gatekeeper_node;
+      document.getElementById('rep-junc-count').innerText = `${report.detected_junctions ? report.detected_junctions.length : 1} Intersections`;
+      document.getElementById('rep-cb').innerText = report.criticality.betweenness_centrality.toFixed(4);
+      document.getElementById('rep-occlusion').innerText = `${report.occlusion_analysis.total_occlusion_percent}% (Canopy: ${report.occlusion_analysis.canopy_coverage_percent}%)`;
+      document.getElementById('rep-geometry').innerText = `${report.synthesized_bypass.type.toUpperCase()} (${report.synthesized_bypass.length_m}m @ ${report.synthesized_bypass.design_speed_kmh}km/h)`;
+      document.getElementById('rep-vc').innerText = `${report.traffic_impact.pre_intervention_vc_ratio} -> ${report.traffic_impact.post_intervention_vc_ratio}`;
+
+      // Populate Detected Junctions Table
+      const tbJunc = document.getElementById('tbody-junctions');
+      tbJunc.innerHTML = '';
+      if (report.detected_junctions && report.detected_junctions.length > 0) {
+        report.detected_junctions.forEach(j => {
+          const tr = document.createElement('tr');
+          const isPri = j.is_primary_bottleneck;
+          tr.style.backgroundColor = isPri ? 'rgba(220, 38, 38, 0.15)' : 'transparent';
+          tr.innerHTML = `
+            <td style="font-weight: 700; color: ${isPri ? '#f87171' : '#38bdf8'};">${j.junction_id}</td>
+            <td>(${Math.round(j.x)}, ${Math.round(j.y)})</td>
+            <td>${j.junction_type} (${j.degree}-Way)</td>
+            <td>${j.betweenness_centrality.toFixed(4)}</td>
+            <td><span class="badge" style="background: ${isPri ? '#dc2626' : '#334155'}; font-size: 0.62rem;">${isPri ? 'CHOKEPOINT' : 'Secondary'}</span></td>
+          `;
+          tbJunc.appendChild(tr);
+        });
+      } else {
+        tbJunc.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b;">No junctions detected</td></tr>';
+      }
+
+      // Populate Road Size Profiles Table
+      const tbRoad = document.getElementById('tbody-roads');
+      tbRoad.innerHTML = '';
+      if (report.road_size_profiles && report.road_size_profiles.length > 0) {
+        report.road_size_profiles.forEach(rp => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="font-weight: 600; color: #e2e8f0;">${rp.segment_id}</td>
+            <td style="color: #fbbf24; font-weight: 700;">${rp.width_m} m</td>
+            <td>${rp.lane_count} Lanes</td>
+            <td style="color: #94a3b8; font-size: 0.75rem;">${rp.road_class}</td>
+            <td style="color: #34d399; font-weight: 600;">${Math.round(rp.capacity_vph)} vph</td>
+          `;
+          tbRoad.appendChild(tr);
+        });
+      } else {
+        tbRoad.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b;">No road sizes measured</td></tr>';
+      }
+    }
+
+    function exportReportJSON() {
+      if (!currentReport) { alert('No report generated yet.'); return; }
+      const blob = new Blob([JSON.stringify(currentReport, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentReport.junction_name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_resilience_report.json`;
+      a.click();
+    }
+
+    // Auto-load Silk Board on initial view
+    window.addEventListener('DOMContentLoaded', () => loadPreset('silk_board', true));
+  </script>
+</body>
+</html>

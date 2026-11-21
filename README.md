@@ -70,10 +70,18 @@ pip install fastapi uvicorn pillow
 ---
 
 ### 2. Launch the Interactive Web Trial App
-Launch the trial web server:
+
+**Option A (Easiest - 1-Click on Windows):**
+Simply double-click:
+👉 **`start_server.bat`** (or right-click `start_server.ps1` and choose *Run with PowerShell*).
+This automatically starts the FastAPI server and opens your browser directly at **`http://localhost:8000`**.
+
+**Option B (From Terminal):**
 ```bash
 python app.py
 ```
+*(If standard `python` alias opens the Windows Store, use: `& "$env:LOCALAPPDATA\Programs\Python\Python313\python.exe" app.py`)*
+
 Open your browser at:
 👉 **`http://localhost:8000`**
 
